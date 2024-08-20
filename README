@@ -1,0 +1,33 @@
+webhooks.mcbe.wtf
+=================
+
+A service used to recieve push events from GitHub and send a friendly message
+through a Discord webhook.
+
+Goal
+----
+
+GitHub can't filter by itself which branches we want to recieve push events,
+and as such we need to write an application to do this for us.
+
+Development
+-----------
+
+Use deno v1.43.5 or higher.
+
+Deployment
+----------
+
+Deployment can be done through the `deploy.sh` script, which will publish the
+project to Deno Deploy, then promote it to "prod" and set environmental
+variables from the .env file
+
+The required variables are:
+
+- GITHUB_WEBHOOK_SECRET
+	* A secret that GitHub and this application must share
+- GITHUB_WEBHOOK_REF
+	- What git ref to listen to. For example "master"
+- DISCORD_WEBHOOK_URL
+	- What discord webhook URL to send the message to
+

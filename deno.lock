@@ -1,0 +1,21 @@
+{
+  "version": "3",
+  "packages": {
+    "specifiers": {
+      "npm:@types/node": "npm:@types/node@18.16.19"
+    },
+    "npm": {
+      "@types/node@18.16.19": {
+        "integrity": "sha512-IXl7o+R9iti9eBW4Wg2hx1xQDig183jj7YLn8F7udNceyfkbn1ZxmzZXuak20gR40D7pIkIY1kYGx5VIGbaHKA==",
+        "dependencies": {}
+      }
+    }
+  },
+  "redirects": {
+    "https://esm.sh/@octokit/openapi-webhooks-types": "https://esm.sh/@octokit/openapi-webhooks-types@8.3.0",
+    "https://esm.sh/@octokit/webhooks": "https://esm.sh/@octokit/webhooks@13.3.0"
+  },
+  "remote": {
+    "https://esm.sh/@octokit/webhooks@13.3.0": "af2a4271cab61f04acd7950fa8c29221fffbd289e7d7a5fd67c1b5f65fe8bbae"
+  }
+}
