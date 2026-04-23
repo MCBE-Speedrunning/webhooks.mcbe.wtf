@@ -1,0 +1,130 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  zizmor:
+    name: Run zizmor
+    runs-on: ubuntu-latest
+    concurrency:
+      group: zizmor-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+
+    permissions:
+      security-events: write # Required for upload-sarif (used by zizmor-action) to upload SARIF files.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
+        with:
+          persona: auditor
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    permissions: {}
+    concurrency:
+      group: test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@667a34cdef165d8d2b2e98dde39547c9daac7282 # 2.0.4
+        with:
+          deno-version: v2.x
+          cache: true
+
+      - name: Check formatting
+        run: deno fmt --check main.ts
+
+      - name: Run linter
+        run: deno lint main.ts
+
+      - name: Run checks
+        run: deno check main.ts
+
+  publish:
+    if: github.repository == 'MCBE-Speedrunning/webhooks.mcbe.wtf' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    name: publish
+    needs: [test, zizmor]
+    environment: production
+    permissions: {}
+    concurrency:
+      group: deploy-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      # Finish deploying, don't leave in an unknown state
+      cancel-in-progress: false
+
+    env:
+      DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+      PROJECT_NAME: ${{ secrets.PROJECT_NAME }}
+      DENO_DEPLOY_ORGANISATION_NAME: ${{ secrets.DENO_DEPLOY_ORGANISATION_NAME }}
+      GH_WEBHOOK_SECRET: ${{ secrets.GH_WEBHOOK_SECRET }}
+      GH_WEBHOOK_REF: ${{ secrets.GH_WEBHOOK_REF }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@667a34cdef165d8d2b2e98dde39547c9daac7282 # 2.0.4
+        with:
+          deno-version: v2.x
+          cache: true
+
+      - name: Create
+        run: |
+          deno deploy create \
+                --org "${DENO_DEPLOY_ORGANISATION_NAME}" \
+                --app "${PROJECT_NAME}" \
+                --source local \
+                --do-not-use-detected-build-config \
+                --runtime-mode dynamic \
+                --entrypoint="./main.ts" \
+                --region global \
+                --install-command "deno install" \
+                --build-timeout 5 \
+                --build-memory-limit 1024 \
+                --no-wait || exit 0
+                # Allow command to fail, as the project may exist already
+                # Next step should fail if this failed for other reasons
+
+      - name: Environment variables
+        run: |
+          envsubst < ".env.deploy" > ".env.deploy-output"
+          deno deploy env load ".env.deploy-output" \
+                --org "${DENO_DEPLOY_ORGANISATION_NAME}" \
+                --app "${PROJECT_NAME}" \
+                --token="${DENO_DEPLOY_TOKEN}" \
+                --replace \
+                --non-secrets DISCORD_WEBHOOK_URL GH_WEBHOOK_REF
+          rm  ".env.deploy-output"
+
+      - name: Deploy
+        run: |
+          deno deploy \
+                --prod \
+                --org "${DENO_DEPLOY_ORGANISATION_NAME}" \
+                --app "${PROJECT_NAME}" \
+                --token="${DENO_DEPLOY_TOKEN}"

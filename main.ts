@@ -14,13 +14,10 @@
 /// You should have received a copy of the GNU General Public License
 /// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import {
-	createEventHandler,
-	EmitterWebhookEvent,
-} from "https://esm.sh/@octokit/webhooks@13.3.0";
+import { createEventHandler, EmitterWebhookEvent } from "@octokit/webhooks";
 
-const secret = Deno.env.get("GITHUB_WEBHOOK_SECRET");
-const refToWatch = Deno.env.get("GITHUB_WEBHOOK_REF");
+const secret = Deno.env.get("GH_WEBHOOK_SECRET");
+const refToWatch = Deno.env.get("GH_WEBHOOK_REF");
 const discordUrl = Deno.env.get("DISCORD_WEBHOOK_URL");
 
 async function sendMessage(content: string) {
@@ -49,11 +46,11 @@ ${
 			payload.commits.map((c) =>
 				`[${
 					c.id.substring(0, 11)
-				}](<${payload.repository.url}/commit/${c.id}>): ${c.message}`
+				}](<${payload.repository.html_url}/commit/${c.id}>): ${c.message}`
 			).join("\n")
 		}
 
-[Compare changes](<${payload.repository.url}/compare/${payload.before}...${payload.after}>)`;
+[Compare changes](<${payload.repository.html_url}/compare/${payload.before}...${payload.after}>)`;
 
 		await sendMessage(content);
 	}
@@ -73,10 +70,10 @@ Deno.serve(async (req) => {
 			}, { status: 400 });
 		}
 		const payload = (await req.json()) as EmitterWebhookEvent["payload"];
+		// @ts-expect-error wtf?
 		eventHandler.receive({
 			id,
 			name,
-			// @ts-expect-error wtf?
 			payload,
 		});
 		return Response.json({
